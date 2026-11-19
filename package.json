@@ -14,6 +14,7 @@
   "dependencies": {
     "@preact/signals": "^2.11.4",
     "fflate": "^0.8.3",
+    "jpeg-js": "^0.4.4",
     "lucide-preact": "^1.75.0",
     "paddleocr-webgpu": "^1.4.0",
     "preact": "^11.2.0"
