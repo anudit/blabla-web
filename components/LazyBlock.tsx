@@ -1,4 +1,4 @@
-import type { ComponentChildren, JSX } from 'preact';
+import type { ComponentChildren, CSSProperties } from 'preact';
 
 interface LazyBlockProps {
   id: string;
@@ -11,7 +11,7 @@ interface LazyBlockProps {
   children: ComponentChildren;
 }
 
-const lazyBlockStyle: JSX.CSSProperties = {
+const lazyBlockStyle: CSSProperties = {
   // CRITICAL: content-visibility: auto is the "silver bullet".
   // It stops the browser from painting/laying out off-screen blocks,
   // BUT it keeps the text in the DOM so Ctrl+F (browser search) still works perfectly.
@@ -21,7 +21,7 @@ const lazyBlockStyle: JSX.CSSProperties = {
   margin: '0 0 1em 0',
 };
 
-const lazyBlockCompactStyle: JSX.CSSProperties = {
+const lazyBlockCompactStyle: CSSProperties = {
   ...lazyBlockStyle,
   margin: 0,
 };

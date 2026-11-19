@@ -1,5 +1,5 @@
 import { useRef } from 'preact/hooks';
-import type { JSX } from 'preact';
+import type { TargetedDragEvent, TargetedEvent, TargetedMouseEvent } from 'preact';
 import Icon from './icons';
 import type { ThemeTokens } from '../theme';
 import BookmarkHistory from './BookmarkHistory';
@@ -10,14 +10,14 @@ interface LandingCardProps {
   t: ThemeTokens;
   isDragOver: boolean;
   setIsDragOver: (v: boolean) => void;
-  onFileDrop: (e: JSX.TargetedDragEvent<HTMLDivElement> | JSX.TargetedEvent<HTMLInputElement, Event>) => void;
+  onFileDrop: (e: TargetedDragEvent<HTMLDivElement> | TargetedEvent<HTMLInputElement, Event>) => void;
   urlInputValue: string;
   setUrlInputValue: (v: string) => void;
   urlError: string;
   setUrlError: (v: string) => void;
   isUrlLoading: boolean;
   onUrlLoad: (url?: string) => void;
-  onClipboardPaste: (e: JSX.TargetedMouseEvent<HTMLButtonElement>) => void;
+  onClipboardPaste: (e: TargetedMouseEvent<HTMLButtonElement>) => void;
   showTextInput: boolean;
   setShowTextInput: (v: boolean) => void;
   textInputValue: string;

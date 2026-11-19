@@ -12,7 +12,7 @@ async function buildAndGzip(entrypoint: string) {
       "process.env.TTS_DEBUG_NODES": JSON.stringify(process.env.TTS_DEBUG_NODES || ""),
     },
   });
-  const bytes = new Uint8Array(await build.outputs[0].arrayBuffer());
+  const bytes = new Uint8Array(await build.outputs[0]!.arrayBuffer());
   const compressed = Bun.gzipSync(bytes);
   return new Response(compressed, {
     headers: {
@@ -33,28 +33,6 @@ const server = serve({
 
     // 2b. Build the OCR Worker (detection + recognition off the main thread)
     "/ocr.worker.js": () => buildAndGzip("./ocr.worker.ts"),
-
-    // 2c. TEMPORARY: GPU decode benchmark harness (dev only, not in build.ts).
-    "/bench.worker.js": () => buildAndGzip("./inflect-tts/tests/bench.worker.ts"),
-    "/bench": () => new Response(
-      `<!doctype html><meta charset=utf8><title>decode bench</title>
-       <body style="font:14px ui-monospace,monospace;padding:16px">
-       <pre id=out>starting…</pre>
-       <script type=module>
-         const out = document.getElementById('out');
-         const log = [];
-         const w = new Worker('/bench.worker.js', { type: 'module' });
-         w.onmessage = (e) => {
-           log.push(JSON.stringify(e.data, null, 2));
-           out.textContent = log.join(String.fromCharCode(10));
-           console.log('[bench]', JSON.stringify(e.data));
-           if (e.data.status === 'done' || e.data.status === 'error') window.__benchResult = e.data;
-         };
-         w.postMessage({ type: 'run', runs: Number(new URLSearchParams(location.search).get('runs') || 5),
-                         skipCpu: new URLSearchParams(location.search).has('skipCpu') });
-       </script>`,
-      { headers: { "Content-Type": "text/html" } },
-    ),
 
     // 3. Serve Static Assets
     "/manifest.json": Bun.file("./manifest.json"),

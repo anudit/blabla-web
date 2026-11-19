@@ -75,7 +75,7 @@ async function emit(name: string, entrySource: string) {
     for (const l of r.logs) console.error(String(l));
     throw new Error(`${name} bundle failed`);
   }
-  const bytes = await r.outputs[0].arrayBuffer();
+  const bytes = await r.outputs[0]!.arrayBuffer();
   const outPath = path.join(OUT_DIR, `${name}.mjs`);
   await Bun.write(outPath, bytes);
   console.log(`✅ ${path.basename(outPath)}: ${(bytes.byteLength / 1024).toFixed(0)} KB raw, ${(Bun.gzipSync(new Uint8Array(bytes)).length / 1024).toFixed(0)} KB gz`);

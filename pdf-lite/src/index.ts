@@ -8,13 +8,14 @@ export class PdfDocument {
 
   static async open(bytes: ArrayBuffer | Uint8Array): Promise<PdfDocument> {
     const file = parsePdf(bytes);
+    await file.expandObjectStreams();
     return new PdfDocument(file, pagesFrom(file));
   }
 
   get numPages() { return this.pages.length; }
   async getPage(pageNumber: number) {
     if (!Number.isInteger(pageNumber) || pageNumber < 1 || pageNumber > this.pages.length) throw new RangeError(`Invalid page number: ${pageNumber}`);
-    return this.pages[pageNumber - 1];
+    return this.pages[pageNumber - 1]!;
   }
   async destroy() { /* Reserved for worker/cache teardown. */ }
 }

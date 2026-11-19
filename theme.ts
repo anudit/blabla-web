@@ -1,36 +1,28 @@
-import type { JSX } from 'preact';
+import type { CSSProperties } from 'preact';
+import { MACH_BOOM_VOICES } from './mach-boom-tts/voices';
 
-export const VOICES = [
-  { value: 'Bella',  label: 'Bella (Eng F)' },
-  { value: 'Jasper', label: 'Jasper (Eng M)' },
-  { value: 'Luna',   label: 'Luna (Eng F)' },
-  { value: 'Bruno',  label: 'Bruno (Eng M)' },
-  { value: 'Rosie',  label: 'Rosie (Eng F)' },
-  { value: 'Hugo',   label: 'Hugo (Eng M)' },
-  { value: 'Kiki',   label: 'Kiki (Eng F)' },
-  { value: 'Leo',    label: 'Leo (Eng M)' },
-];
+export const VOICES = MACH_BOOM_VOICES.map((v) => ({ value: v.name, label: v.label }));
 
 export const staticStyles = {
-  canvas: { display: 'block', width: '100%', height: 'auto' } as JSX.CSSProperties,
+  canvas: { display: 'block', width: '100%', height: 'auto' } as CSSProperties,
   overlay: {
     position: 'absolute' as const, top: 0, left: 0, right: 0, bottom: 0,
     zIndex: 10, pointerEvents: 'none' as const,
-  } as JSX.CSSProperties,
+  } as CSSProperties,
   lineBase: {
     position: 'absolute' as const, cursor: 'pointer', borderRadius: '2px',
     // REMOVED backgroundColor: 'transparent' to prevent specificity wars with classes
     transition: 'background-color 0.2s ease',
     pointerEvents: 'auto' as const,
-  } as JSX.CSSProperties,
-  buttonDisabled: { opacity: 0.5, cursor: 'not-allowed' as const, filter: 'grayscale(1)' } as JSX.CSSProperties,
+  } as CSSProperties,
+  buttonDisabled: { opacity: 0.5, cursor: 'not-allowed' as const, filter: 'grayscale(1)' } as CSSProperties,
   playButton: {
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     width: '42px', height: '42px', borderRadius: '50%',
     backgroundColor: '#2563eb', color: 'white', border: 'none', cursor: 'pointer' as const,
     boxShadow: '0 2px 4px rgba(37,99,235,0.3)', transition: 'transform 0.1s',
     flexShrink: 0,
-  } as JSX.CSSProperties,
+  } as CSSProperties,
   statusLoading: { color: '#2563eb', backgroundColor: '#eff6ff', border: '1px solid #bfdbfe' },
   statusReady:   { color: '#059669', backgroundColor: '#d1fae5', border: '1px solid #6ee7b7' },
   statusFallback:{ color: '#d97706', backgroundColor: '#fef3c7', border: '1px solid #fde68a' },

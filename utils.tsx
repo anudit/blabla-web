@@ -115,8 +115,8 @@ export function renderMd(text: string, linkColor: string = '#3b82f6'): Component
       } else {
         const lm = s.match(/^\[([^\]]*)\]\(([^)]+)\)$/);
         if (lm) {
-          const linkText = lm[1];
-          const linkUrl = lm[2];
+          const linkText = lm[1]!;
+          const linkUrl = lm[2]!;
           if (!linkText.trim() && isImageUrl(linkUrl)) {
             // Empty link text pointing to an image URL -> render as image
             parts.push(<img key={ki++} src={linkUrl} alt={linkText} style={{ maxWidth: '100%', borderRadius: '4px', verticalAlign: 'middle', margin: '0 2px' }} />);
@@ -186,7 +186,7 @@ export function parseOcrPageText(text: string) {
   }
 
   for (let i = 0; i < paragraphs.length; i++) {
-    const paraText = paragraphs[i];
+    const paraText = paragraphs[i]!;
     const startLineId = globalLineIdCounter;
     const paraId = `ocr-para-${i}`;
     const paraSentences: any[] = [];
@@ -234,7 +234,7 @@ export async function loadWithCache(url: string, onProgress: (pct: number) => vo
     return URL.createObjectURL(await clone.blob());
   }
   
-  const chunks: Uint8Array[] = [];
+  const chunks: Uint8Array<ArrayBuffer>[] = [];
   let received = 0;
   while (true) {
     const { value, done } = await reader.read();

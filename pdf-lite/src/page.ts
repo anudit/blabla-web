@@ -20,10 +20,10 @@ function textTransform(viewport: Viewport, matrix: Matrix): Matrix {
 function transform(m: Matrix, x: number, y: number): [number, number] { return [m[0] * x + m[2] * y + m[4], m[1] * x + m[3] * y + m[5]]; }
 
 export function makeViewport(box: number[], scale: number, rotation = 0): Viewport {
-  const width = Math.abs(box[2] - box[0]) * scale;
-  const height = Math.abs(box[3] - box[1]) * scale;
+  const width = Math.abs(box[2]! - box[0]!) * scale;
+  const height = Math.abs(box[3]! - box[1]!) * scale;
   const r = ((rotation % 360) + 360) % 360;
-  const transformMatrix: Matrix = r === 90 ? [0, scale, -scale, 0, height, 0] : r === 180 ? [-scale, 0, 0, scale, width, 0] : r === 270 ? [0, -scale, scale, 0, 0, width] : [scale, 0, 0, -scale, -box[0] * scale, box[3] * scale];
+  const transformMatrix: Matrix = r === 90 ? [0, scale, -scale, 0, height, 0] : r === 180 ? [-scale, 0, 0, scale, width, 0] : r === 270 ? [0, -scale, scale, 0, 0, width] : [scale, 0, 0, -scale, -box[0]! * scale, box[3]! * scale];
   return {
     width: r === 90 || r === 270 ? height : width,
     height: r === 90 || r === 270 ? width : height,
@@ -51,17 +51,17 @@ function operators(source: string): Array<{ op: string; args: (string | number)[
   const tokens: (string | number)[] = [];
   let i = 0;
   while (i < source.length) {
-    if (/\s/.test(source[i])) { i++; continue; }
+    if (/\s/.test(source[i]!)) { i++; continue; }
     if (source[i] === '%') { while (i < source.length && source[i] !== '\n') i++; continue; }
-    if (source[i] === '/') { let s = i++; while (i < source.length && !/[\s\[\]()<>\/{%]/.test(source[i])) i++; tokens.push(source.slice(s, i)); continue; }
+    if (source[i] === '/') { let s = i++; while (i < source.length && !/[\s\[\]()<>\/{%]/.test(source[i]!)) i++; tokens.push(source.slice(s, i)); continue; }
     if (source[i] === '(') { let s = i++, depth = 1; while (i < source.length && depth) { if (source[i] === '\\') i += 2; else { if (source[i] === '(') depth++; if (source[i] === ')') depth--; i++; } } tokens.push(source.slice(s, i)); continue; }
     if (source[i] === '<') { let s = i++; while (i < source.length && source[i] !== '>') i++; if (i < source.length) i++; tokens.push(source.slice(s, i)); continue; }
-    if (source[i] === '[' || source[i] === ']') { tokens.push(source[i++]); continue; }
+    if (source[i] === '[' || source[i] === ']') { tokens.push(source[i++]!); continue; }
     // PDF lexical delimiters can appear immediately next to numbers. For
     // example, TeX-generated TJ arrays commonly look like
     // `[(word)-417(next)] TJ`. The number must end before `(`, otherwise the
     // scanner consumes the following strings as part of one invalid token.
-    const s = i++; while (i < source.length && !/[\s\[\]()<>\/{%]/.test(source[i])) i++;
+    const s = i++; while (i < source.length && !/[\s\[\]()<>\/{%]/.test(source[i]!)) i++;
     const token = source.slice(s, i); const n = Number(token); tokens.push(Number.isFinite(n) ? n : token);
   }
   const result: Array<{ op: string; args: (string | number)[] }> = []; let args: (string | number)[] = [];
@@ -119,7 +119,7 @@ function pdfString(value: string | number): string {
   if (utf16) {
     const start = bytes[0] === 0xfe && bytes[1] === 0xff ? 2 : 0;
     let text = '';
-    for (let i = start; i + 1 < bytes.length; i += 2) text += String.fromCharCode((bytes[i] << 8) | bytes[i + 1]);
+    for (let i = start; i + 1 < bytes.length; i += 2) text += String.fromCharCode((bytes[i]! << 8) | bytes[i + 1]!);
     return text;
   }
   return String.fromCharCode(...bytes);
@@ -140,8 +140,8 @@ function hexNumber(value: string) {
 function decodeHexTarget(value: string): string {
   const bytes = hexBytes(value);
   let text = '';
-  for (let i = 0; i + 1 < bytes.length; i += 2) text += String.fromCharCode((bytes[i] << 8) | bytes[i + 1]);
-  return bytes.length % 2 ? `${text}${String.fromCharCode(bytes[bytes.length - 1])}` : text;
+  for (let i = 0; i + 1 < bytes.length; i += 2) text += String.fromCharCode((bytes[i]! << 8) | bytes[i + 1]!);
+  return bytes.length % 2 ? `${text}${String.fromCharCode(bytes[bytes.length - 1]!)}` : text;
 }
 
 function decodeRangeTarget(hex: string, offset: number): string {
@@ -163,16 +163,16 @@ function parseToUnicode(source: string): Map<string, string> {
   const bfchar = source.match(/beginbfchar([\s\S]*?)endbfchar/g) || [];
   for (const block of bfchar) {
     const pairs = block.matchAll(/(<[0-9a-f]+>)\s*(<[0-9a-f]+>)/gi);
-    for (const pair of pairs) map.set(pair[1].slice(1, -1).toUpperCase(), decodeHexTarget(pair[2]));
+    for (const pair of pairs) map.set(pair[1]!.slice(1, -1).toUpperCase(), decodeHexTarget(pair[2]!));
   }
   const bfrange = source.match(/beginbfrange([\s\S]*?)endbfrange/g) || [];
   for (const block of bfrange) {
     const ranges = block.matchAll(/(<[0-9a-f]+>)\s*(<[0-9a-f]+>)\s*(<[0-9a-f]+>)/gi);
     for (const range of ranges) {
-      const start = hexNumber(range[1]); const end = hexNumber(range[2]);
+      const start = hexNumber(range[1]!); const end = hexNumber(range[2]!);
       for (let code = start; code <= end; code++) {
         const offset = code - start;
-        map.set(code.toString(16).padStart(range[1].length - 2, '0').toUpperCase(), decodeRangeTarget(range[3], offset));
+        map.set(code.toString(16).padStart(range[1]!.length - 2, '0').toUpperCase(), decodeRangeTarget(range[3]!, offset));
       }
     }
   }
@@ -220,9 +220,9 @@ export class PdfPage {
       else if (op === 'Td' && args.length >= 2) { lineMatrix = multiply(lineMatrix, [1, 0, 0, 1, Number(args[0]), Number(args[1])]); textMatrix = [...lineMatrix]; }
       else if (op === 'TD' && args.length >= 2) { leading = -Number(args[1]); lineMatrix = multiply(lineMatrix, [1, 0, 0, 1, Number(args[0]), Number(args[1])]); textMatrix = [...lineMatrix]; }
       else if (op === 'T*') { lineMatrix = multiply(lineMatrix, [1, 0, 0, 1, 0, -leading]); textMatrix = [...lineMatrix]; }
-      else if (op === 'Tj' && args.length) { const str = decodePdfText(args[0], fontMaps.get(fontName)); items.push({ str, transform: [...textMatrix], width: str.length * fontSize * 0.5, height: fontSize }); textMatrix = multiply(textMatrix, [1, 0, 0, 1, str.length * fontSize * 0.5, 0]); }
+      else if (op === 'Tj' && args.length) { const str = decodePdfText(args[0]!, fontMaps.get(fontName)); items.push({ str, transform: [...textMatrix], width: str.length * fontSize * 0.5, height: fontSize }); textMatrix = multiply(textMatrix, [1, 0, 0, 1, str.length * fontSize * 0.5, 0]); }
       else if (op === 'TJ' && args.length) { const str = textFromArgs(args, fontMaps.get(fontName)); items.push({ str, transform: [...textMatrix], width: str.length * fontSize * 0.5, height: fontSize }); textMatrix = multiply(textMatrix, [1, 0, 0, 1, str.length * fontSize * 0.5, 0]); }
-      else if (op === "'" && args.length) { lineMatrix = multiply(lineMatrix, [1, 0, 0, 1, 0, -fontSize * 1.2]); textMatrix = [...lineMatrix]; const str = decodePdfText(args[0], fontMaps.get(fontName)); items.push({ str, transform: [...textMatrix], width: str.length * fontSize * 0.5, height: fontSize }); }
+      else if (op === "'" && args.length) { lineMatrix = multiply(lineMatrix, [1, 0, 0, 1, 0, -fontSize * 1.2]); textMatrix = [...lineMatrix]; const str = decodePdfText(args[0]!, fontMaps.get(fontName)); items.push({ str, transform: [...textMatrix], width: str.length * fontSize * 0.5, height: fontSize }); }
       else if (op === 'ET') { textMatrix = [...identity]; lineMatrix = [...identity]; }
     }
     return { items };
@@ -327,10 +327,10 @@ export class PdfPage {
             const decoded = jpeg.decode(bytes, { useTArray: true, formatAsRGBA: false, colorTransform: false });
             const image = ctx.createImageData(decoded.width, decoded.height);
             for (let source = 0, target = 0; target < image.data.length; source += 4, target += 4) {
-              const c = decoded.data[source] / 255;
-              const m = decoded.data[source + 1] / 255;
-              const y = decoded.data[source + 2] / 255;
-              const k = decoded.data[source + 3] / 255;
+              const c = decoded.data[source]! / 255;
+              const m = decoded.data[source + 1]! / 255;
+              const y = decoded.data[source + 2]! / 255;
+              const k = decoded.data[source + 3]! / 255;
               image.data[target] = Math.round(255 * (1 - Math.min(1, c + k)));
               image.data[target + 1] = Math.round(255 * (1 - Math.min(1, m + k)));
               image.data[target + 2] = Math.round(255 * (1 - Math.min(1, y + k)));

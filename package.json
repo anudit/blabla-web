@@ -12,15 +12,15 @@
     "outdated": "bunx npm-check-updates --interactive"
   },
   "dependencies": {
-    "@preact/signals": "^2.11.2",
+    "@preact/signals": "^2.11.4",
     "fflate": "^0.8.3",
-    "lucide-preact": "^1.47.0",
+    "lucide-preact": "^1.75.0",
     "paddleocr-webgpu": "^1.4.0",
-    "phonemizer": "^1.2.1",
-    "preact": "^10.29.8"
+    "preact": "^11.2.0"
   },
   "devDependencies": {
-    "signals-devtool-provider": "^0.5.4",
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "@webgpu/types": "^0.1.74",
+    "signals-devtool-provider": "^0.5.4"
   }
 }

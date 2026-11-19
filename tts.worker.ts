@@ -1,10 +1,12 @@
-// tts.worker.ts — Inflect-Micro-v2 TTS via pure WebGPU kernels (~38M, 24 kHz)
-import { InflectTTSEngine, textToInputIds, edgeFade, splitText, boundaryPauseSeconds } from './inflect-tts/index.ts';
+// tts.worker.ts — Mach Boom TTS (SyzygyResearch/Mach-Boom) on WebGPU, 24 kHz
+import {
+  MachBoomEngine, VOICE_IDS, DEFAULT_VOICE, VOICE_BASE_URL, splitText, boundaryPauseSeconds, edgeFade, timeStretch,
+} from './mach-boom-tts/index.ts';
 
-const ONNX_BASE = 'https://huggingface.co/owensong/Inflect-Micro-v2-ONNX/resolve/main/onnx';
-const DURATION_URL = `${ONNX_BASE}/duration.onnx`;
-const DECODE_URL = `${ONNX_BASE}/decode.onnx`;
-const MODEL_DB = 'inflect-tts-models-v1';
+const HF_BASE = 'https://huggingface.co/SyzygyResearch/Mach-Boom/resolve/main';
+const MODEL_DB = 'mach-boom-models-v1';
+const WEIGHTS = 'mach-boom.bin';
+const TOKENIZER = 'tokenizer.json';
 
 // IDB helpers — IndexedDB stores raw ArrayBuffer so there are no CORS or
 // redirect restrictions (unlike Cache Storage, which rejects cross-origin
@@ -33,43 +35,52 @@ function idbPut(db: IDBDatabase, key: string, buf: ArrayBuffer): Promise<void> {
   });
 }
 
-async function fetchCached(db: IDBDatabase, remoteUrl: string, cacheKey: string): Promise<string> {
-  const cached = await idbGet(db, cacheKey);
-  if (cached) return URL.createObjectURL(new Blob([cached], { type: 'application/octet-stream' }));
-  const res = await fetch(remoteUrl);
-  if (!res.ok) throw new Error(`Failed to fetch ${remoteUrl}: ${res.status}`);
+async function fetchCached(db: IDBDatabase, url: string, key: string): Promise<ArrayBuffer> {
+  const cached = await idbGet(db, key);
+  if (cached) return cached;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Failed to fetch ${key}: ${res.status}`);
   const buf = await res.arrayBuffer();
-  await idbPut(db, cacheKey, buf);
-  return URL.createObjectURL(new Blob([buf], { type: 'application/octet-stream' }));
+  await idbPut(db, key, buf);
+  return buf;
 }
+const fetchModelFile = (db: IDBDatabase, path: string) => fetchCached(db, `${HF_BASE}/${path}`, path);
+// Voices come from gradium/phonon-voices (Mach Boom's own repo only ships four of them).
+const fetchVoice = (db: IDBDatabase, id: string) => fetchCached(db, `${VOICE_BASE_URL}/${id}.safetensors`, `voices/${id}.safetensors`);
 
-let engine: InflectTTSEngine | null = null;
+let engine: MachBoomEngine | null = null;
+let db: IDBDatabase | null = null;
 let generateChain: Promise<void> = Promise.resolve();
 
-async function runGenerate(text: string, lineIndex: number | undefined, speed: number, notify: boolean) {
+async function ensureVoice(name: string | undefined): Promise<string> {
+  const voice = name && VOICE_IDS[name] ? name : DEFAULT_VOICE;
+  if (!engine!.hasVoice(voice)) {
+    db ??= await openModelDB();
+    engine!.addVoice(voice, await fetchVoice(db, VOICE_IDS[voice]!));
+  }
+  return voice;
+}
+
+async function runGenerate(text: string, lineIndex: number | undefined, voiceName: string | undefined, speed: number, notify: boolean) {
   if (!engine) throw new Error('TTS not initialized');
-  const sr = engine.sampleRateValue;
+  const voice = await ensureVoice(voiceName);
+  const sr = engine.sampleRate;
   const chunks = splitText(text);
   const pieces: Float32Array[] = [];
   for (let i = 0; i < chunks.length; i++) {
-    if (i) pieces.push(new Float32Array(Math.round(sr * boundaryPauseSeconds(chunks[i - 1]))));
-    let ids: number[];
-    try {
-      ({ ids } = await textToInputIds(chunks[i]));
-    } catch {
-      continue;
-    }
-    if (ids.length < 3) continue;
-    const { waveform } = await engine.generate(ids, { speed });
-    pieces.push(edgeFade(waveform, sr));
+    const { audio } = await engine.synthesize(chunks[i]!, voice);
+    if (!audio.length) continue;
+    if (pieces.length) pieces.push(new Float32Array(Math.round(sr * boundaryPauseSeconds(chunks[i - 1]!))));
+    pieces.push(edgeFade(audio, sr));
   }
   if (!notify) return;
   if (!pieces.length) throw new Error('The text frontend produced no speakable tokens.');
   let total = 0;
   for (const p of pieces) total += p.length;
-  const audio = new Float32Array(total);
+  let audio = new Float32Array(total);
   let off = 0;
   for (const p of pieces) { audio.set(p, off); off += p.length; }
+  audio = timeStretch(audio, speed, sr);
   self.postMessage({ status: 'complete', audio, text, lineIndex }, [audio.buffer]);
 }
 
@@ -80,45 +91,38 @@ self.addEventListener('message', (e: MessageEvent<any>) => {
       if (type === 'init') {
         if (engine) return;
 
-        engine = new InflectTTSEngine();
         self.postMessage({ status: 'loading', message: 'Initializing WebGPU...' });
-        await engine.init();
+        const device = await MachBoomEngine.requestDevice();
+        device.lost.then((info) => {
+          console.warn('[MachBoom Worker] GPU device lost', info.message);
+          engine = null;
+        });
 
-        const db = await openModelDB();
-        const alreadyCached = !!(await idbGet(db, 'duration.onnx'));
-        self.postMessage({ status: 'loading', message: alreadyCached ? 'Loading Model...' : 'Downloading 38M Model...' });
-
-        const [durationUrl, decodeUrl] = await Promise.all([
-          fetchCached(db, DURATION_URL, 'duration.onnx'),
-          fetchCached(db, DECODE_URL, 'decode.onnx'),
+        db = await openModelDB();
+        const alreadyCached = !!(await idbGet(db, WEIGHTS));
+        self.postMessage({ status: 'loading', message: alreadyCached ? 'Loading Model...' : 'Downloading Mach Boom (18 MB)...' });
+        const [weights, tokenizer] = await Promise.all([
+          fetchModelFile(db, WEIGHTS),
+          fetchModelFile(db, TOKENIZER).then((b) => JSON.parse(new TextDecoder().decode(b))),
+          fetchVoice(db, VOICE_IDS[DEFAULT_VOICE]!),
         ]);
-
         self.postMessage({ status: 'models_cached' });
 
-        await engine.loadModel(durationUrl, decodeUrl);
+        engine = await MachBoomEngine.create(weights, tokenizer, device);
 
-        // Compile shaders, JIT the duration graph, and load espeak WASM
-        // before the UI can post real lines — overlapping generates share
-        // GPU buffers and garbled the first spoken sentence.
+        // Compile pipelines and build the voice prefix before real lines arrive.
         self.postMessage({ status: 'loading', message: 'Warming up…' });
-        await runGenerate('Warm up.', -1, 1.0, false);
+        await runGenerate('Warm up.', -1, DEFAULT_VOICE, 1.0, false);
 
-        console.log('[InflectTTS Worker] Ready');
-        self.postMessage({ status: 'ready', device: navigator.gpu ? 'webgpu' : 'cpu', dtype: 'fp32' });
+        console.log('[MachBoom Worker] Ready');
+        self.postMessage({ status: 'ready', device: 'webgpu', dtype: 'fp16' });
       } else if (type === 'generate') {
-        const { text, lineIndex, speed = 1.0 } = e.data;
-        try {
-          await runGenerate(text, lineIndex, speed, true);
-        } catch (err) {
-          // A bad line can leave GPU activations in the buffer pool; rebuild
-          // once so the rest of the book is not permanently garbled.
-          console.warn('[InflectTTS Worker] generate failed, recovering GPU', err);
-          await engine?.recoverGpu();
-          await runGenerate(text, lineIndex, speed, true);
-        }
+        const { text, lineIndex, voice, speed = 1.0 } = e.data;
+        if (!engine) throw new Error('TTS not initialized (GPU device was lost — reload the page)');
+        await runGenerate(text, lineIndex, voice, speed, true);
       }
     } catch (err: any) {
-      console.error('[InflectTTS Worker]', err);
+      console.error('[MachBoom Worker]', err);
       if (type === 'init') engine = null;
       const isFetchError = err instanceof TypeError && err.message.toLowerCase().includes('fetch');
       self.postMessage({

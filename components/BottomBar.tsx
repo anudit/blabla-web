@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'preact/hooks';
-import type { JSX } from 'preact';
+import type { CSSProperties, TargetedEvent } from 'preact';
 import Icon from './icons';
 import type { ThemeTokens, ThemeName } from '../theme';
 import { TT, staticStyles, VOICES, THEMES, THEME_META } from '../theme';
@@ -41,7 +41,7 @@ interface BottomBarProps {
   onSpeedChange: (speed: number) => void;
   usingFallback: boolean;
   selectedVoice: string;
-  onVoiceChange: (e: JSX.TargetedEvent<HTMLSelectElement, Event>) => void;
+  onVoiceChange: (e: TargetedEvent<HTMLSelectElement, Event>) => void;
   sentencesLength: number;
   fontSize: number;
   onFontSizeChange: (delta: number) => void;
@@ -130,8 +130,8 @@ export default function BottomBar({
     if (maxScale <= 0) return;
     let idx = 0;
     for (let i = 0; i < data.length; i += 4) {
-      data[i]     = (raw[idx++] / maxScale + 0.5) * 255;
-      data[i + 1] = (raw[idx++] / maxScale + 0.5) * 255;
+      data[i]     = (raw[idx++]! / maxScale + 0.5) * 255;
+      data[i + 1] = (raw[idx++]! / maxScale + 0.5) * 255;
       data[i + 2] = 0;
       data[i + 3] = 255;
     }
@@ -158,13 +158,13 @@ export default function BottomBar({
 
   const closeAll = () => { setIsSpeedMenuOpen(false); setIsMenuOpen(false); setIsThemePickerOpen(false); };
 
-  const iconButtonStyle: JSX.CSSProperties = {
+  const iconButtonStyle: CSSProperties = {
     padding: '0.5rem', borderRadius: '0.375rem', border: 'none', cursor: 'pointer',
     backgroundColor: 'transparent', color: t.barSpeedBg, display: 'flex', alignItems: 'center', justifyContent: 'center',
     filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.28))', transition: TT,
   };
 
-  const speedButtonStyle: JSX.CSSProperties = {
+  const speedButtonStyle: CSSProperties = {
     fontSize: '0.95rem', fontWeight: 700, color: t.barSpeedBg,
     textShadow: isDarkMode ? '0 1px 2px rgba(0,0,0,0.4)' : '0 1px 1px rgba(255,255,255,0.35)',
     background: 'transparent', border: 'none',
@@ -186,7 +186,7 @@ export default function BottomBar({
     0 0 0 2px rgba(0,255,255,0.06)
   `;
 
-  const popoverBase: JSX.CSSProperties = {
+  const popoverBase: CSSProperties = {
     position: 'absolute', bottom: 'calc(100% + 10px)', overflow: 'hidden',
     borderRadius: '0.875rem', backgroundColor: t.menuBg,
     border: `1px solid ${t.menuBorder}`,
@@ -195,7 +195,7 @@ export default function BottomBar({
       : '0 8px 24px rgba(0,0,0,0.1), 0 2px 6px rgba(0,0,0,0.06)',
   };
 
-  const playButtonStyle: JSX.CSSProperties = {
+  const playButtonStyle: CSSProperties = {
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     width: '44px', height: '44px', borderRadius: '50%', border: 'none', cursor: 'pointer', flexShrink: 0,
     color: 'white',
@@ -215,7 +215,7 @@ export default function BottomBar({
     `,
     transition: 'transform 0.1s, box-shadow 0.2s',
   };
-  const playButtonDisabledStyle: JSX.CSSProperties = {
+  const playButtonDisabledStyle: CSSProperties = {
     ...playButtonStyle,
     opacity: 0.4, cursor: 'not-allowed', filter: 'grayscale(0.7)',
     boxShadow: '0 0 0 1px rgba(147,197,253,0.18), 0 2px 10px rgba(37,99,235,0.12), inset 0 1px 0 rgba(255,255,255,0.15)',
@@ -359,7 +359,7 @@ function ThemePicker({ t, isDarkMode, themeName, onThemeChange, popoverBase }: {
   isDarkMode: boolean;
   themeName: ThemeName;
   onThemeChange: (name: ThemeName) => void;
-  popoverBase: JSX.CSSProperties;
+  popoverBase: CSSProperties;
 }) {
   const themeNames = Object.keys(THEME_META) as ThemeName[];
 
@@ -418,9 +418,9 @@ function SettingsMenu({
   const playbackState      = playbackStateSignal.value;
   const volume             = volumeSignal.value;
 
-  const row: JSX.CSSProperties = { padding: '0.55rem 1rem', display: 'flex', alignItems: 'center' };
-  const lbl: JSX.CSSProperties = { fontSize: '0.75rem', color: t.textMuted, minWidth: '62px' };
-  const val: JSX.CSSProperties = { fontSize: '0.75rem', fontWeight: 600, color: t.text, fontFamily: 'monospace' };
+  const row: CSSProperties = { padding: '0.55rem 1rem', display: 'flex', alignItems: 'center' };
+  const lbl: CSSProperties = { fontSize: '0.75rem', color: t.textMuted, minWidth: '62px' };
+  const val: CSSProperties = { fontSize: '0.75rem', fontWeight: 600, color: t.text, fontFamily: 'monospace' };
   const statusDot = isModelReady && !usingFallback ? '#22c55e' : usingFallback ? '#f59e0b' : '#3b82f6';
 
   return (

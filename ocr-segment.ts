@@ -23,7 +23,7 @@ export function segmentTextLines(
 
   // Otsu threshold
   const hist = new Array(256).fill(0);
-  for (let j = 0; j < gray.length; j++) hist[gray[j]]++;
+  for (let j = 0; j < gray.length; j++) hist[gray[j]!]!++;
   let sum = 0;
   for (let i = 0; i < 256; i++) sum += i * hist[i];
   let sumB = 0, wB = 0, maxVar = 0, threshold = 127;
@@ -41,7 +41,7 @@ export function segmentTextLines(
 
   // Binary: text pixels (darker than threshold) = 1
   const bw = new Uint8Array(W * H);
-  for (let j = 0; j < gray.length; j++) bw[j] = gray[j] < threshold ? 1 : 0;
+  for (let j = 0; j < gray.length; j++) bw[j] = gray[j]! < threshold ? 1 : 0;
 
   // Erase full-width horizontal ruled lines (>55% of row dark = horizontal rule, not text).
   // Also erase ±0 adjacent rows so the gap they create exceeds mergeGap, preventing
@@ -50,7 +50,7 @@ export function segmentTextLines(
   const ruleRows = new Set<number>();
   for (let y = 0; y < H; y++) {
     const row = y * W; let cnt = 0;
-    for (let x = 0; x < W; x++) cnt += bw[row + x];
+    for (let x = 0; x < W; x++) cnt += bw[row + x]!;
     if (cnt > hRuleThresh) ruleRows.add(y);
   }
   const erasePad = 0;
@@ -66,9 +66,9 @@ export function segmentTextLines(
   // occupy at most ~52% of page height even if they appear on every line.
   const vRuleThresh = Math.floor(H * 0.70);
   const colCounts = new Int32Array(W);
-  for (let y = 0; y < H; y++) { const row = y * W; for (let x = 0; x < W; x++) colCounts[x] += bw[row + x]; }
+  for (let y = 0; y < H; y++) { const row = y * W; for (let x = 0; x < W; x++) colCounts[x]! += bw[row + x]!; }
   for (let x = 0; x < W; x++) {
-    if (colCounts[x] > vRuleThresh) {
+    if (colCounts[x]! > vRuleThresh) {
       for (let y = 0; y < H; y++) bw[y * W + x] = 0;
     }
   }
@@ -94,7 +94,7 @@ export function segmentTextLines(
   for (let y = 0; y < H; y++) {
     const row = y * W;
     let s = 0;
-    for (let x = 0; x < W; x++) s += dilated[row + x];
+    for (let x = 0; x < W; x++) s += dilated[row + x]!;
     proj[y] = s;
   }
 
@@ -108,9 +108,9 @@ export function segmentTextLines(
   const rawLines: { y0: number; y1: number }[] = [];
   let i = 0;
   while (i < H) {
-    if (proj[i] > bandThreshold) {
+    if (proj[i]! > bandThreshold) {
       const start = i;
-      while (i < H && proj[i] > bandThreshold) i++;
+      while (i < H && proj[i]! > bandThreshold) i++;
       const end = i;
       if (end - start > minLineHeight) rawLines.push({ y0: start, y1: end });
     }
@@ -121,8 +121,8 @@ export function segmentTextLines(
   const merged: { y0: number; y1: number }[] = [];
   const mergeGap = Math.max(0, Math.round(1.5 * scale));
   for (const ln of rawLines) {
-    if (merged.length > 0 && ln.y0 - merged[merged.length - 1].y1 < mergeGap) {
-      merged[merged.length - 1].y1 = ln.y1;
+    if (merged.length > 0 && ln.y0 - merged[merged.length - 1]!.y1 < mergeGap) {
+      merged[merged.length - 1]!.y1 = ln.y1;
     } else {
       merged.push({ y0: ln.y0, y1: ln.y1 });
     }

@@ -21,9 +21,9 @@ const processElements = (
       if (!headText || headText === state.lastAddedHeaderText) continue;
       state.lastAddedHeaderText = headText;
       const headId = `header-${state.globalLineIdCounter++}`;
-      const headItem = { type: 'header', id: headId, text: headText, level: parseInt(tag[1]) };
+      const headItem = { type: 'header', id: headId, text: headText, level: parseInt(tag[1]!) };
       state.allContent.push(headItem);
-      state.allOutline.push({ id: headId, text: headText, level: parseInt(tag[1]) });
+      state.allOutline.push({ id: headId, text: headText, level: parseInt(tag[1]!) });
       continue;
     }
     const runs = extractRuns(el), rawText = runs.filter(r => !r.br).map(r => r.text).join(''), cleanText = rawText.replace(/\s+/g, ' ').trim(); if (!cleanText) continue;
@@ -74,9 +74,9 @@ export const loadMarkdown = async (
   const fmMatch = content.match(/^---[ \t]*\r?\n([\s\S]*?)\r?\n---[ \t]*\r?\n/);
   if (fmMatch) {
     frontmatter = {};
-    for (const ln of fmMatch[1].split('\n')) {
+    for (const ln of fmMatch[1]!.split('\n')) {
       const m = ln.match(/^(\w+):\s*(.+)$/);
-      if (m) (frontmatter as any)[m[1].toLowerCase()] = m[2].trim();
+      if (m) (frontmatter as any)[m[1]!.toLowerCase()] = m[2]!.trim();
     }
     content = content.slice(fmMatch[0].length).trimStart();
   }
@@ -129,7 +129,7 @@ export const loadMarkdown = async (
   let hasYieldedInitial = false;
 
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
+    const line = lines[i]!;
     if (/^(`{3,}|~{3,})/.test(line)) {
       if (!inFence) { flushPara(); inFence = true; fenceLines = []; }
       else { inFence = false; contentData.push({ type: 'code', id: `code-${idCounter++}`, text: fenceLines.join('\n'), headerId: currentHeaderId }); }
@@ -140,9 +140,9 @@ export const loadMarkdown = async (
       if (hm) {
         flushPara();
         currentHeaderId = `header-${idCounter++}`;
-        const headText = stripMd(hm[2].replace(/\s+#+\s*$/, '').trim());
-        contentData.push({ type: 'header', id: currentHeaderId, text: headText, level: hm[1].length });
-        outline.push({ id: currentHeaderId, text: headText, level: hm[1].length });
+        const headText = stripMd(hm[2]!.replace(/\s+#+\s*$/, '').trim());
+        contentData.push({ type: 'header', id: currentHeaderId, text: headText, level: hm[1]!.length });
+        outline.push({ id: currentHeaderId, text: headText, level: hm[1]!.length });
       } else if (/^\s{0,3}([-*_]\s*){3,}$/.test(line) && !/\w/.test(line)) {
         flushPara(); contentData.push({ type: 'hr', id: `hr-${idCounter++}` });
       } else if (!line.trim()) {
@@ -154,17 +154,17 @@ export const loadMarkdown = async (
         const imgM = line.match(/^\s*!\[([^\]]*)\]\(([^)]+)\)\s*$/);
         const linkImgM = line.match(/^\s*\[!\[([^\]]*)\]\(([^)]+)\)\]\(([^)]+)\)\s*$/);
         const emptyLinkM = line.match(/^\s*\[\s*\]\(([^)]+)\)\s*$/);
-        if (imgM) { flushPara(); contentData.push({ type: 'image', id: `img-${idCounter++}`, src: imgM[2], alt: imgM[1], headerId: currentHeaderId }); }
-        else if (linkImgM) { flushPara(); contentData.push({ type: 'image', id: `img-${idCounter++}`, src: linkImgM[2], alt: linkImgM[1], headerId: currentHeaderId }); }
-        else if (emptyLinkM && isImageUrl(emptyLinkM[1])) { flushPara(); contentData.push({ type: 'image', id: `img-${idCounter++}`, src: emptyLinkM[1], alt: '', headerId: currentHeaderId }); }
+        if (imgM) { flushPara(); contentData.push({ type: 'image', id: `img-${idCounter++}`, src: imgM[2]!, alt: imgM[1]!, headerId: currentHeaderId }); }
+        else if (linkImgM) { flushPara(); contentData.push({ type: 'image', id: `img-${idCounter++}`, src: linkImgM[2]!, alt: linkImgM[1]!, headerId: currentHeaderId }); }
+        else if (emptyLinkM && isImageUrl(emptyLinkM[1]!)) { flushPara(); contentData.push({ type: 'image', id: `img-${idCounter++}`, src: emptyLinkM[1]!, alt: '', headerId: currentHeaderId }); }
         else {
           const li = line.match(/^\s*(?:[-*+]|\d+[.)]) (.*)/);
           if (li) {
-            const t = li[1].trim().replace(/!\[[^\]]*\]\([^)]+\)/g, '').trim();
+            const t = li[1]!.trim().replace(/!\[[^\]]*\]\([^)]+\)/g, '').trim();
             if (t) paraLines.push(/[.!?:;]$/.test(t) ? t : t + '.');
           } else {
             const bq = line.match(/^>\s*(.*)/);
-            if (bq) paraLines.push(bq[1]);
+            if (bq) paraLines.push(bq[1]!);
             else paraLines.push(line);
           }
         }
@@ -198,7 +198,7 @@ export const loadText = async (
   
   let _lastYield = performance.now();
   for (let i = 0; i < paragraphs.length; i++) {
-    const paraText = paragraphs[i];
+    const paraText = paragraphs[i]!;
     const startLineId = globalLineIdCounter;
     const paraId = `para-${globalLineIdCounter}`, paraSentences: any[] = [];
     for (const sText of extractSentences(paraText)) {
@@ -268,8 +268,8 @@ export const loadEPUB = async (
     let hasYieldedInitial = false;
 
     for (let i = 0; i < spineIds.length; i++) {
-      const id = spineIds[i], href = manifest[id]; if (!href) continue;
-      const fullPath = normalizePath(opfDir + href), cleanPath = decodeURIComponent(fullPath.split('#')[0]), fileBytes = files[cleanPath]; if (!fileBytes) continue;
+      const id = spineIds[i]!, href = manifest[id]; if (!href) continue;
+      const fullPath = normalizePath(opfDir + href), cleanPath = decodeURIComponent(fullPath.split('#')[0]!), fileBytes = files[cleanPath]; if (!fileBytes) continue;
       const doc = parser.parseFromString(decoder.decode(fileBytes), 'application/xhtml+xml');
       let chapterTitle = toc.length > 0 ? findTitleInToc(toc, href) : null;
       if (!chapterTitle) { const h1 = doc.querySelector('h1'); if (h1) chapterTitle = h1.textContent?.trim() || null; }
@@ -307,13 +307,13 @@ export const loadEPUB = async (
 const decompressPalmDoc = (data: Uint8Array) => {
   let out = new Uint8Array(data.length * 10), n = 0;
   for (let i = 0; i < data.length; ) {
-    let b = data[i++];
-    if (b >= 1 && b <= 8) { while (b-- > 0 && i < data.length) out[n++] = data[i++]; }
+    let b = data[i++]!;
+    if (b >= 1 && b <= 8) { while (b-- > 0 && i < data.length) out[n++] = data[i++]!; }
     else if (b < 128) { out[n++] = b; }
     else if (b >= 192) { out[n++] = 32; if (i < data.length) out[n++] = b ^ 128; }
     else if (i < data.length) {
-      let b2 = data[i++], dist = (((b & 0x3f) << 5) | (b2 >> 3)), len = (b2 & 7) + 3;
-      while (len-- > 0 && n >= dist) { out[n] = out[n - dist]; n++; }
+      let b2 = data[i++]!, dist = (((b & 0x3f) << 5) | (b2 >> 3)), len = (b2 & 7) + 3;
+      while (len-- > 0 && n >= dist) { out[n] = out[n - dist]!; n++; }
     }
   }
   return out.slice(0, n);
@@ -330,7 +330,7 @@ export const loadMOBI = async (
     const recordOffsets: number[] = [];
     for (let i = 0; i < numRecords; i++) recordOffsets.push(view.getUint32(78 + i * 8));
 
-    const headerOffset = recordOffsets[0];
+    const headerOffset = recordOffsets[0]!;
     const compression = view.getUint16(headerOffset);
     const textRecordCount = view.getUint16(headerOffset + 8);
     const version = view.getUint32(headerOffset + 32);
@@ -404,7 +404,7 @@ function docxXmlToHtml(xmlString: string): string {
       const styleVal = pStyle?.getAttribute('w:val') || '';
       let lvl = 0;
       const hm = styleVal.match(/^(?:Heading|TOCHeading)(\d+)$/i);
-      if (hm) lvl = Math.min(6, Math.max(1, parseInt(hm[1])));
+      if (hm) lvl = Math.min(6, Math.max(1, parseInt(hm[1]!)));
       else if (/^Title$/i.test(styleVal)) lvl = 1;
       else if (/^Subtitle$/i.test(styleVal)) lvl = 2;
 
@@ -513,6 +513,7 @@ export const loadPDF = async (
   setIsDocLoading(true);
   try {
     const doc = await PdfDocument.open(data);
+    if (!doc.numPages) throw new Error('PDF has no readable pages');
     const scale = Math.min(window.devicePixelRatio || 1, 2);
     
     const globalLineList: any[] = [];
@@ -558,9 +559,10 @@ export const loadPDF = async (
                  lineCumPos[lineMapPtr] + globalLineList[lineMapPtr].text.length <= sentStart) lineMapPtr++;
           // Collect all lines overlapping [sentStart, sentEnd)
           const sentLines: number[] = [];
-          for (let lp = lineMapPtr; lp < globalLineList.length && lineCumPos[lp] < sentEnd; lp++)
-            sentLines.push(globalLineList[lp].id);
-          if (sentText && sentLines.length > 0) allSentences.push({ text: sentText, lines: sentLines });
+          for (let lp = lineMapPtr; lp < globalLineList.length && lineCumPos[lp]! < sentEnd; lp++)
+            sentLines.push(globalLineList[lp]!.id);
+          // Flat copy: a plain slice would pin this (ever-growing) version of fullText.
+          if (sentText && sentLines.length > 0) allSentences.push({ text: (' ' + sentText).slice(1), lines: sentLines });
         }
         // On final page grab any trailing fragment as the last sentence
         if (isFinal) {
@@ -568,8 +570,8 @@ export const loadPDF = async (
           if (rem) {
             const sentLines: number[] = [];
             for (let lp = lineMapPtr; lp < globalLineList.length; lp++)
-              sentLines.push(globalLineList[lp].id);
-            if (sentLines.length > 0) allSentences.push({ text: rem, lines: sentLines });
+              sentLines.push(globalLineList[lp]!.id);
+            if (sentLines.length > 0) allSentences.push({ text: (' ' + rem).slice(1), lines: sentLines });
           }
         }
 
@@ -578,7 +580,7 @@ export const loadPDF = async (
         await new Promise(r => setTimeout(r, 0));
       }
     }
-  } catch (e) { console.error(e); } finally { setIsDocLoading(false); }
+  } catch (e) { console.error(e); alert('Could not load PDF file'); } finally { setIsDocLoading(false); }
 };
 
 const processTextContent = (textContent: any, scale: number, startIndex: number, viewport: any) => {

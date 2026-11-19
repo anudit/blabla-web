@@ -1,7 +1,7 @@
 import { Fragment } from 'preact';
 import { memo } from 'preact/compat';
 import { useEffect, useRef } from 'preact/hooks';
-import type { JSX } from 'preact';
+import type { CSSProperties } from 'preact';
 import { useComputed } from '@preact/signals';
 import type { Signal } from '@preact/signals';
 import { outlineSignal, currentSentenceIndexSignal } from '../signals';
@@ -35,7 +35,7 @@ export default function ContentViewer({
   t, isDarkMode, fontSize, onLineClick,
   ocrCurrentPage, setOcrCurrentPage, ocrPageLoading,
 }: ContentViewerProps) {
-  const pageContainerStyle: JSX.CSSProperties = { position: 'relative', marginBottom: '1rem', boxShadow: t.pageShadow, backgroundColor: '#fff', width: '100%', height: 'auto' };
+  const pageContainerStyle: CSSProperties = { position: 'relative', marginBottom: '1rem', boxShadow: t.pageShadow, backgroundColor: '#fff', width: '100%', height: 'auto' };
   const lc = isDarkMode ? '#60a5fa' : '#2563eb';
 
   const handleContainerClick = (e: MouseEvent) => {

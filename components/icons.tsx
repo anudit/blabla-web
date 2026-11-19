@@ -1,7 +1,7 @@
 // components/icons.tsx — extracted from lucide-preact v1.17.0 (ISC).
 // All 18 icons used by the app; tree-shake friendly single export.
 
-import type { JSX } from "preact";
+import type { CSSProperties } from "preact";
 
 type IconName = "target"|"loader-circle"|"check"|"play"|"pause"|"menu"|"palette"|"beaker"|"clock"|"trash-2"|"book-open"|"file-text"|"globe"|"text-align-justify"|"x"|"upload"|"clipboard"|"bookmark"|"chevron-left"|"chevron-right"|"volume"|"pip";
 type IconTuple = [string, Record<string, string | number>];
@@ -112,7 +112,7 @@ interface Props {
   color?: string;
   fill?: string;
   strokeWidth?: number;
-  style?: JSX.CSSProperties;
+  style?: CSSProperties;
   className?: string;
   title?: string;
 }

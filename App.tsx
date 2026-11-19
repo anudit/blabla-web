@@ -113,6 +113,15 @@ export default function App() {
   const canPip = useMemo(() => pipSupported(), []);
 
   const modelFetchFailedRef = useRef(false);
+  const ttsInitRequested = useRef(false);
+
+  // Lazy TTS init: start the worker's model load the first time a document has text.
+  useSignalEffect(() => {
+    if (sentencesSignal.value.length === 0 || ttsInitRequested.current || !workerRef.current) return;
+    ttsInitRequested.current = true;
+    ttsStatusSignal.value = "Downloading Model...";
+    workerRef.current.postMessage({ type: 'init' });
+  });
 
   useEffect(() => {
     workerRef.current = new Worker("/tts.worker.js", { type: 'module' });
@@ -147,8 +156,8 @@ export default function App() {
         }
       }
     };
-    ttsStatusSignal.value = "Downloading Model...";
-    workerRef.current.postMessage({ type: 'init' });
+    // TTS (~18 MB download, ~150 MB GPU) is initialised lazily on first document load.
+    ttsStatusSignal.value = "Loads with first document";
 
     // Retry model download automatically when the connection is restored
     const onOnline = () => {
@@ -640,7 +649,7 @@ export default function App() {
       const fid = `${file.name}:${file.size}`; currentFileIdSignal.value = fid; currentFileNameSignal.value = file.name;
       const exist = getBookmarks().find(b => b.id === fid); if (exist) pendingResumeRef.current = exist.sentenceIndex;
       const r = new FileReader();
-      if (file.type === 'application/pdf') {
+      if (file.type === 'application/pdf' || /\.pdf$/i.test(file.name)) {
         r.onload = (ev) => loadPDF(ev.target?.result as ArrayBuffer, async (sents, pdfPages, pdfDocObj, isFinal) => {
           if (isFinal && sents.length === 0) {
             setPdfDoc(pdfDocObj);
@@ -950,8 +959,8 @@ export default function App() {
 
       const titleMatch = md.match(/^Title:\s*(.+)/m);
       const title = titleMatch
-        ? titleMatch[1].trim()
-        : (gdocMatch ? md.match(/^#\s+(.+)/m)?.[1].trim() || "Google Doc" : new URL(inputUrl).hostname);
+        ? titleMatch[1]!.trim()
+        : (gdocMatch ? md.match(/^#\s+(.+)/m)?.[1]!.trim() || "Google Doc" : new URL(inputUrl).hostname);
 
       currentFileIdSignal.value = inputUrl;
       currentFileNameSignal.value = title;
@@ -992,7 +1001,7 @@ export default function App() {
     let u = new URLSearchParams(window.location.search).get('url');
     const pathMatch = window.location.pathname.match(/^\/url=(.+)$/);
     if (!u && pathMatch) {
-      try { u = decodeURIComponent(pathMatch[1]); } catch { u = pathMatch[1]; }
+      try { u = decodeURIComponent(pathMatch[1]!); } catch { u = pathMatch[1]!; }
     }
     if (u) {
       history.replaceState(null, '', '/');

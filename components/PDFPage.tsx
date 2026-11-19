@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
-import type { JSX } from 'preact';
+import type { CSSProperties } from 'preact';
 import { staticStyles } from '../theme';
 
 interface PDFPageProps {
   data: any;
   pdfDoc: any;
   onLineClick: (lineId: number) => void;
-  pageContainerStyle: JSX.CSSProperties;
+  pageContainerStyle: CSSProperties;
 }
 
 const PDFPage = ({ data, pdfDoc, onLineClick, pageContainerStyle }: PDFPageProps) => {
@@ -19,42 +19,68 @@ const PDFPage = ({ data, pdfDoc, onLineClick, pageContainerStyle }: PDFPageProps
   useEffect(() => {
     const container = containerRef.current;
     if (!container || !pdfDoc) return;
+    let renderedWidth = 0; // backing-store width currently on the canvas (0 = released)
+    let disposed = false;
 
-    const renderPage = async () => {
-      if (!canvasRef.current) return;
-      if (renderTaskRef.current) { try { renderTaskRef.current.cancel(); } catch (e) {} renderTaskRef.current = null; }
-      try {
-        const page = await pdfDoc.getPage(data.pageNumber);
-        pageRef.current = page;
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-        canvas.width = data.viewport.width;
-        canvas.height = data.viewport.height;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
-        const renderTask = page.render({ canvasContext: ctx, viewport: data.viewport });
-        renderTaskRef.current = renderTask;
-        await renderTask.promise;
-      } catch (e: any) { if (e.name !== 'RenderingCancelledException') console.error("Render error:", e); }
+    // Backing store sized to the displayed width × dpr (never above the
+    // layout viewport), instead of the full scale-2 page bitmap.
+    const targetWidth = () => {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const css = container.clientWidth || data.viewport.width / dpr;
+      return Math.max(1, Math.min(Math.round(css * dpr), Math.round(data.viewport.width)));
     };
 
-    const cleanupPage = () => {
+    const renderPage = async () => {
+      if (disposed || !canvasRef.current) return;
+      const width = targetWidth();
+      if (width === renderedWidth) return;
+      if (renderTaskRef.current) { try { renderTaskRef.current.cancel(); } catch (e) {} renderTaskRef.current = null; }
+      try {
+        const page = pageRef.current ?? await pdfDoc.getPage(data.pageNumber);
+        pageRef.current = page;
+        const canvas = canvasRef.current;
+        if (!canvas || disposed) return;
+        const viewport = page.getViewport({ scale: data.viewport.scale * (width / data.viewport.width) });
+        canvas.width = Math.round(viewport.width);
+        canvas.height = Math.round(viewport.height);
+        renderedWidth = width;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        const renderTask = page.render({ canvasContext: ctx, viewport });
+        renderTaskRef.current = renderTask;
+        await renderTask.promise;
+      } catch (e: any) {
+        if (e.name !== 'RenderingCancelledException' && e.name !== 'RenderCancelledError') console.error("Render error:", e);
+      }
+    };
+
+    // Free the bitmap (GPU/IOSurface memory) but keep the line overlay so
+    // sentence highlighting and scrollIntoView keep working.
+    const releaseCanvas = () => {
       if (renderTaskRef.current) { try { renderTaskRef.current.cancel(); } catch (e) {} renderTaskRef.current = null; }
       if (pageRef.current) { pageRef.current.cleanup(); pageRef.current = null; }
       if (canvasRef.current) { canvasRef.current.width = 0; canvasRef.current.height = 0; }
+      renderedWidth = 0;
     };
 
-    const observer = new IntersectionObserver((entries) => {
-      const entry = entries[0];
-      if (!entry) return;
-      // Keep a rendered page mounted once it has entered the reader's
-      // viewport. Cleaning it up as soon as it leaves the intersection margin
-      // can race with fast scrolling and leave a visible page blank when it
-      // re-enters before the next render tick.
-      if (entry.isIntersecting) { setIsVisible(true); setTimeout(renderPage, 0); }
-    }, { rootMargin: '5000px 0px' });
-    observer.observe(container);
-    return () => { observer.disconnect(); cleanupPage(); };
+    // Hysteresis: render within 1500px of the viewport, release beyond 4000px,
+    // so fast scrolling back and forth doesn't thrash or flash blank pages.
+    const near = new IntersectionObserver((entries) => {
+      if (entries[0]?.isIntersecting) { setIsVisible(true); setTimeout(renderPage, 0); }
+    }, { rootMargin: '1500px 0px' });
+    const far = new IntersectionObserver((entries) => {
+      if (entries[0] && !entries[0].isIntersecting) releaseCanvas();
+    }, { rootMargin: '4000px 0px' });
+    near.observe(container);
+    far.observe(container);
+
+    // Re-render at the new resolution when the layout width changes noticeably.
+    const resize = new ResizeObserver(() => {
+      if (renderedWidth && Math.abs(targetWidth() - renderedWidth) > renderedWidth * 0.1) renderPage();
+    });
+    resize.observe(container);
+
+    return () => { disposed = true; near.disconnect(); far.disconnect(); resize.disconnect(); releaseCanvas(); };
   }, [data, pdfDoc]);
 
   const aspectRatio = data.viewport.height / data.viewport.width;
